@@ -552,12 +552,12 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
             "pthread_attr_getstack" => {
                 // second argument is where we are supposed to write the stack address
                 let ptr = this.deref_operand(args[1])?;
-                this.write_scalar(Scalar::from(this.machine.stack_addr), ptr.into())?;
+                this.write_scalar(Scalar::from(this.machine.stack_addr.unwrap()), ptr.into())?;
                 // return 0
                 this.write_null(dest)?;
             }
             "pthread_get_stackaddr_np" => {
-                this.write_scalar(Scalar::from(this.machine.stack_addr), dest)?;
+                this.write_scalar(Scalar::from(this.machine.stack_addr.unwrap()), dest)?;
             }
 
             // Stub out calls for condvar, mutex and rwlock to just return 0
@@ -580,7 +580,7 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
                 // mapping is returned as the result of the call.
                 // We choose to always ignore the address in miri
                 let addr = this.read_scalar(args[0])?.not_undef()?;
-                if addr == this.machine.stack_addr.into() {
+                if addr == this.machine.stack_addr.unwrap().into() {
                     this.write_scalar(addr, dest)?;
                 } else {
                     let length = this.read_scalar(args[1])?.to_usize(&*this.tcx)?;

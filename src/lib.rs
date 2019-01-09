@@ -80,7 +80,7 @@ pub fn create_ecx<'a, 'mir: 'a, 'tcx: 'mir>(
     );
     // There is only one allocation with kind `StackRoot`. It is used to recognize or "create"
     // pointers to the stack root.
-    ecx.machine.stack_addr = stack_addr.with_default_tag();
+    ecx.machine.stack_addr = Some(stack_addr.with_default_tag());
 
     let main_instance = ty::Instance::mono(ecx.tcx.tcx, main_id);
     let main_mir = ecx.load_mir(main_instance.def)?;
@@ -321,7 +321,7 @@ pub struct Evaluator<'tcx> {
 
     /// The AllocId reserved for the stack. Trying to access the stack through this will abort,
     /// but we need it for other code which needs to properly identify the stack
-    pub(crate) stack_addr: Pointer<Borrow>,
+    pub(crate) stack_addr: Option<Pointer<Borrow>>,
 
     /// Program arguments (`Option` because we can only initialize them after creating the ecx).
     /// These are *pointers* to argc/argv because macOS.
@@ -348,8 +348,7 @@ impl<'tcx> Evaluator<'tcx> {
         Evaluator {
             env_vars: HashMap::default(),
             mem_fds: HashMap::default(),
-            // start out with no stack root pointer by using a forever invalid AllocId
-            stack_addr: Pointer::new(AllocId(u64::max_value()), Size::ZERO).with_default_tag(),
+            stack_addr: None,
             next_mem_fd: 3,
             argc: None,
             argv: None,
