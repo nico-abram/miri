@@ -550,7 +550,7 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
                 this.write_null(dest)?;
             }
             "pthread_attr_getstack" => {
-                // second argument is where we are supposed to write the stack size
+                // second argument is where we are supposed to write the stack address
                 let ptr = this.deref_operand(args[1])?;
                 this.write_scalar(Scalar::from(this.machine.stack_addr), ptr.into())?;
                 // return 0

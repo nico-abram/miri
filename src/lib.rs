@@ -71,10 +71,15 @@ pub fn create_ecx<'a, 'mir: 'a, 'tcx: 'mir>(
     );
 
     let stack_addr = ecx.memory_mut().allocate(
+        // no need to actually allocate any memory, this is never accessed. Miri uses an abstract
+        // stack, not a big stack allocation where the stack variables are placed.
         Size::ZERO,
+        // The stack must be page aligned according to various libc function's documentation.
         Align::from_bytes(fn_call::EMULATED_PAGE_SIZE.into()).unwrap(),
         MiriMemoryKind::StackRoot.into(),
     );
+    // There is only one allocation with kind `StackRoot`. It is used to recognize or "create"
+    // pointers to the stack root.
     ecx.machine.stack_addr = stack_addr.with_default_tag();
 
     let main_instance = ty::Instance::mono(ecx.tcx.tcx, main_id);
@@ -275,7 +280,10 @@ pub enum MiriMemoryKind {
     MutStatic,
     /// in-memory file descriptors
     MemFd,
-    /// The stack allocation
+    /// The stack allocation. Backed by a zero sized, page aligned allocation that is not meant to
+    /// ever be accessed.
+    /// Instead its `AllocId` is just used as a marker to *identify* the stack. This is useful for
+    /// syscalls that yield a pointer to the stack.
     StackRoot,
 }
 
