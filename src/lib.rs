@@ -349,6 +349,8 @@ impl<'tcx> Evaluator<'tcx> {
             env_vars: HashMap::default(),
             mem_fds: HashMap::default(),
             stack_addr: None,
+            // 0, 1 and 2 are stdin, stdout and stderr respectively. Everything beyond that is up
+            // for grabs
             next_mem_fd: 3,
             argc: None,
             argv: None,
