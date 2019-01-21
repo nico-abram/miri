@@ -65,6 +65,16 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
         dest: PlaceTy<'tcx, Borrow>,
         ret: mir::BasicBlock,
     ) -> EvalResult<'tcx> {
+        let read_path = |this: &mut MiriEvalContext<'a, 'mir, 'tcx>, path: &[&str]| -> EvalResult<'tcx, i32> {
+            let instance = this.resolve_path(path)?;
+            let cid = GlobalId {
+                instance,
+                promoted: None,
+            };
+            let const_val = this.const_eval_raw(cid)?;
+            let const_val = this.read_scalar(const_val.into())?;
+            const_val.to_i32()
+        };
         let this = self.eval_context_mut();
         let attrs = this.tcx.get_attrs(def_id);
         let link_name = match attr::first_attr_value_str_by_name(&attrs, "link_name") {
@@ -461,18 +471,10 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
                 ];
                 let mut result = None;
                 for &(path, path_value) in paths {
-                    if let Ok(instance) = this.resolve_path(path) {
-                        let cid = GlobalId {
-                            instance,
-                            promoted: None,
-                        };
-                        let const_val = this.const_eval_raw(cid)?;
-                        let const_val = this.read_scalar(const_val.into())?;
-                        let value = const_val.to_i32()?;
-                        if value == name {
-                            result = Some(path_value);
-                            break;
-                        }
+                    let value = read_path(this, path)?;
+                    if value == name {
+                        result = Some(path_value);
+                        break;
                     }
                 }
                 if let Some(result) = result {
@@ -587,7 +589,7 @@ pub trait EvalContextExt<'a, 'mir, 'tcx: 'a+'mir>: crate::MiriEvalContextExt<'a,
                     if length == 0 {
                         return err!(MachineError("mmap length argument may not be zero".to_string()));
                     }
-                    let prot = this.read_scalar(args[2])?.to_i32()?;
+                    let _prot = this.read_scalar(args[2])?.to_i32()?;
                     let flags = this.read_scalar(args[3])?.to_i32()?;
                     if flags != libc::MAP_SHARED {
                         return err!(Unimplemented("mmap flag argument must be MAP_SHARED".to_string()));
