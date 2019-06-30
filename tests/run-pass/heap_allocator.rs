@@ -29,7 +29,19 @@ fn check_alloc<T: Alloc>(mut allocator: T) { unsafe {
     allocator.dealloc(p4, Layout::from_size_align(10, 4).unwrap());
 } }
 
-fn check_overalign_requests<T: Alloc>(mut allocator: T) {
+unsafe fn align_ptr(ptr: *mut u8, align: usize) -> *mut u8 {
+    ptr.add(align - (ptr as usize & (align - 1)))
+}
+
+fn allocate_with_align<T: Alloc>(mut allocator: T, size: usize, align: usize) -> *mut u8 { unsafe {
+    let ptr = allocator.alloc(Layout::from_size_align(size + align, 1).unwrap()).unwrap().as_ptr();
+    eprintln!("{}", format!("Before aligning: {:?}", ptr));
+    let ptr = align_ptr(ptr, align);
+    eprintln!("{}", format!("After aligning: {:?}", ptr));
+    ptr
+} }
+
+fn check_overalign_requests<T: Alloc+Copy>(mut allocator: T) {
     let size = 8;
     // Greater than `size`.
     let align = 16;
@@ -37,16 +49,16 @@ fn check_overalign_requests<T: Alloc>(mut allocator: T) {
     let iterations = 5;
     unsafe {
         let pointers: Vec<_> = (0..iterations).map(|_| {
-            allocator.alloc(Layout::from_size_align(size, align).unwrap()).unwrap()
+            allocate_with_align(allocator, size, align)
         }).collect();
         for &ptr in &pointers {
-            assert_eq!((ptr.as_ptr() as usize) % align, 0,
+            assert_eq!((ptr as usize) % align, 0,
                        "Got a pointer less aligned than requested")
         }
 
         // Clean up.
         for &ptr in &pointers {
-            allocator.dealloc(ptr, Layout::from_size_align(size, align).unwrap())
+            allocator.dealloc(NonNull::new(ptr).unwrap(), Layout::from_size_align(size, 1).unwrap())
         }
     }
 }
